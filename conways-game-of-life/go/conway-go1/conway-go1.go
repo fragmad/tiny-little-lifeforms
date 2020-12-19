@@ -7,7 +7,8 @@ package main
 - Implement a way to display the board in ASCII - DONE, but too far to long when combined with the above
 - Implment a way to find out what the next state is - DONE
 - Implement a way to update the board - DONE
-- Implement command line flags
+- Divide project into seperate files - DONE
+- Implement command line flags - DONE
 - Imlement a way to input start states
 - Implement gif output
 
@@ -15,139 +16,9 @@ package main
 */
 
 import (
+	"flag"
 	"fmt"
-	"math/rand"
-	"time"
 )
-
-type cell struct {
-	x     int
-	y     int
-	state bool
-}
-
-// redundent at the moment
-func newCell(x, y int, state bool) cell {
-	c := cell{x: x, y: y, state: true}
-	return c
-}
-
-type board struct {
-	width  int
-	height int
-	rows   [][]cell
-}
-
-func newBoard(w, h int, state bool) board {
-	rows := make([][]cell, h, h)
-	for y := 0; y < h; y++ {
-		cols := make([]cell, w, w)
-		for x := 0; x < w; x++ {
-			c := cell{x, y, state}
-			// fmt.Println(c)
-			cols[x] = c
-		}
-		rows[y] = cols
-		// fmt.Println("-------------")
-	}
-
-	b := board{w, h, rows}
-	return b
-}
-
-func newRandBoard(w, h int) board {
-	rows := make([][]cell, h, h)
-
-	var src = rand.NewSource(time.Now().UnixNano())
-	var r = rand.New(src)
-
-	for y := 0; y < h; y++ {
-		cols := make([]cell, w, w)
-		for x := 0; x < w; x++ {
-			state := r.Intn(2) != 0
-			c := cell{x, y, state}
-			// fmt.Println(c)
-			cols[x] = c
-		}
-		rows[y] = cols
-		// fmt.Println("-------------")
-	}
-
-	b := board{w, h, rows}
-	return b
-}
-
-func decideCellNextState(c cell, b board) bool {
-	cx := c.x
-	cy := c.y
-	cs := c.state
-	new_state := false
-	living_neighbours := 0
-
-	type point struct {
-		x int
-		y int
-	}
-
-	possible_neighbours := make([]point, 8)
-	n1 := point{cx, cy + 1}
-	n2 := point{cx, cy - 1}
-	n3 := point{cx + 1, cy}
-	n4 := point{cx - 1, cy}
-	n5 := point{cx + 1, cy + 1}
-	n6 := point{cx - 1, cy - 1}
-	n7 := point{cx - 1, cy + 1}
-	n8 := point{cx - 1, cy + 1}
-
-	possible_neighbours[0] = n1
-	possible_neighbours[1] = n2
-	possible_neighbours[2] = n3
-	possible_neighbours[4] = n4
-	possible_neighbours[4] = n5
-	possible_neighbours[5] = n6
-	possible_neighbours[6] = n7
-	possible_neighbours[7] = n8
-
-	// Either assume that cells of the grid are dead
-	// or loop arond <-- try this first
-
-	for _, n := range possible_neighbours {
-		if n.x < 0 {
-			// fmt.Println("1")
-			n.x = n.x + b.width
-		}
-		if n.y < 0 {
-			// fmt.Println("2")
-			n.y = n.y + b.height
-		}
-		if n.x > b.width-1 {
-			// fmt.Println("3")
-			n.x = n.x - b.width
-		}
-		if n.y > b.height-1 {
-			n.y = n.y - b.height
-			// fmt.Println("4")
-		}
-
-		if b.rows[n.y][n.x].state == true {
-			living_neighbours++
-		} else {
-			continue
-		}
-
-		if cs == true && living_neighbours < 2 {
-			new_state = false
-		} else if cs == true && (living_neighbours >= 2 && living_neighbours <= 3) {
-			new_state = true
-		} else if cs == true && living_neighbours > 3 {
-			new_state = false
-		} else if cs == false && living_neighbours > 3 {
-			new_state = true
-		}
-
-	}
-	return new_state
-}
 
 func nextGenerationBoard(current_board board) board {
 	var new_board board = current_board
@@ -188,13 +59,24 @@ func textRenderBoard(b *board) {
 }
 
 func compareBoards(b1 *board, b2 *board) bool {
-
+	return false
 }
 
 func main() {
 	showDiagnostics := false
 	runLife := true
-	numberOfGenerations := 10000
+
+	generationsPtr := flag.Int("generations", 10, "Number of generations to run")
+	boardHeightPtr := flag.Int("height", 10, "Board height")
+	boardWidthPtr := flag.Int("width", 10, "Board width")
+	silenceOutputPtr := flag.Bool("silent", false, "Silence ASCII output")
+
+	flag.Parse()
+
+	numberOfGenerations := *generationsPtr
+	silent := *silenceOutputPtr
+	board_height := *boardHeightPtr
+	board_width := *boardWidthPtr
 
 	if showDiagnostics == true {
 		// Cells
@@ -228,19 +110,27 @@ func main() {
 
 	if runLife == true {
 		// universe := newBoard(10, 10, true)
-		universe := newRandBoard(100, 100)
+		universe := newRandBoard(board_width, board_height)
 
-		fmt.Println("--- IT BEGINS --- ")
-		fmt.Printf("A story of %d generations.", numberOfGenerations)
-		textRenderBoard(&universe)
-		fmt.Println("---")
+		if !silent {
+			fmt.Println("--- IT BEGINS --- ")
+			fmt.Printf("A story of %d generations.\n", numberOfGenerations)
+			textRenderBoard(&universe)
+			fmt.Println("---")
+		}
+
 		for i := 1; i <= numberOfGenerations; i++ {
-			fmt.Println("--- Chapter", i, "--- ")
+			if !silent {
+				fmt.Println("--- Chapter", i, "--- ")
+			}
 			new_universe := nextGenerationBoard(universe)
 			universe = new_universe
-			textRenderBoard(&new_universe)
-			fmt.Println("--- ")
+			if !silent {
+				textRenderBoard(&new_universe)
+			}
 		}
-		fmt.Println("--- THE END --- ")
+		if !silent {
+			fmt.Println("--- THE END --- ")
+		}
 	}
 }
